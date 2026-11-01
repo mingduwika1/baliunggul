@@ -1,0 +1,6 @@
+{
+  "name": "SIM LENTERA - Sistem Informasi Manajemen Program Sekolah",
+  "description": "Sistem Informasi Manajemen Program Unggulan LENTERA Sekolah: Menerangi Potensi, Membangun Generasi, Mewujudkan SDM Bali Unggul dengan 7 Pilar Terintegrasi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
