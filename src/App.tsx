@@ -10,6 +10,7 @@ import {
   PelaksanaanItem,
   DokumentasiItem,
   MonitoringItem,
+  EvaluasiPemantauanItem,
   GuruItem,
   SiswaItem,
   KelasItem,
@@ -38,6 +39,8 @@ import { PengaturanView } from './components/pengaturan/PengaturanView';
 // Modal Components
 import { ProgramFormModal } from './components/perencanaan/ProgramFormModal';
 import { PelaksanaanFormModal } from './components/pelaksanaan/PelaksanaanFormModal';
+import { EvaluasiFormModal } from './components/evaluasi/EvaluasiFormModal';
+import { AsistenAiTindakLanjutModal } from './components/ai/AsistenAiTindakLanjutModal';
 import { GasHubModal } from './components/gas/GasHubModal';
 import { PrintableKegiatanModal } from './components/laporan/PrintableKegiatanModal';
 
@@ -53,6 +56,7 @@ export default function App() {
   const [pelaksanaans, setPelaksanaans] = useState<PelaksanaanItem[]>(StorageService.getPelaksanaan());
   const [dokumentasis, setDokumentasis] = useState<DokumentasiItem[]>(StorageService.getDokumentasi());
   const [monitorings, setMonitorings] = useState<MonitoringItem[]>(StorageService.getMonitoring());
+  const [evaluasiList, setEvaluasiList] = useState<EvaluasiPemantauanItem[]>(StorageService.getEvaluasiPemantauan());
   const [gurus, setGurus] = useState<GuruItem[]>(StorageService.getGuru());
   const [siswas, setSiswas] = useState<SiswaItem[]>(StorageService.getSiswa());
   const [kelases, setKelases] = useState<KelasItem[]>(StorageService.getKelas());
@@ -67,6 +71,7 @@ export default function App() {
       setPelaksanaans(StorageService.getPelaksanaan());
       setDokumentasis(StorageService.getDokumentasi());
       setMonitorings(StorageService.getMonitoring());
+      setEvaluasiList(StorageService.getEvaluasiPemantauan());
       setGurus(StorageService.getGuru());
       setSiswas(StorageService.getSiswa());
       setKelases(StorageService.getKelas());
@@ -82,6 +87,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [perencanaanPilarFilter, setPerencanaanPilarFilter] = useState<string>('ALL');
+  const [laporanInitialType, setLaporanInitialType] = useState<string | undefined>(undefined);
 
   // Modal Controls
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
@@ -91,6 +97,10 @@ export default function App() {
   const [isPelaksanaanModalOpen, setIsPelaksanaanModalOpen] = useState(false);
   const [pelaksanaanToEdit, setPelaksanaanToEdit] = useState<PelaksanaanItem | null>(null);
   const [defaultProgramForPelaksanaan, setDefaultProgramForPelaksanaan] = useState<ProgramItem | null>(null);
+
+  // Evaluasi & AI Assistant Modals
+  const [isEvaluasiModalOpen, setIsEvaluasiModalOpen] = useState(false);
+  const [isAiAssistantModalOpen, setIsAiAssistantModalOpen] = useState(false);
 
   const [isGasHubOpen, setIsGasHubOpen] = useState(false);
 
@@ -134,6 +144,9 @@ export default function App() {
   const handleNavigate = (tab: string, filter?: any) => {
     if (tab === 'perencanaan' && filter?.pilarCode) {
       setPerencanaanPilarFilter(filter.pilarCode);
+    }
+    if (tab === 'laporan' && filter?.reportType) {
+      setLaporanInitialType(filter.reportType);
     }
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -207,9 +220,12 @@ export default function App() {
               pelaksanaans={pelaksanaans}
               dokumentasis={dokumentasis}
               monitorings={monitorings}
+              evaluasiList={evaluasiList}
               onNavigate={handleNavigate}
               onOpenProgramModal={handleOpenProgramModal}
               onOpenPelaksanaanModal={() => handleOpenPelaksanaanModal()}
+              onOpenEvaluasiModal={() => setIsEvaluasiModalOpen(true)}
+              onOpenAiAssistantModal={() => setIsAiAssistantModalOpen(true)}
             />
           )}
 
@@ -262,7 +278,9 @@ export default function App() {
               pelaksanaans={pelaksanaans}
               dokumentasis={dokumentasis}
               monitorings={monitorings}
+              evaluasiList={evaluasiList}
               pengaturan={pengaturan}
+              initialReportType={laporanInitialType}
             />
           )}
 
@@ -312,6 +330,34 @@ export default function App() {
         onSaved={saved => {
           setPelaksanaans(StorageService.getPelaksanaan());
           setDokumentasis(StorageService.getDokumentasi());
+        }}
+      />
+
+      {/* MODAL INPUT PEMANTAUAN & EVALUASI */}
+      <EvaluasiFormModal
+        isOpen={isEvaluasiModalOpen}
+        onClose={() => setIsEvaluasiModalOpen(false)}
+        onSaved={saved => {
+          setEvaluasiList(StorageService.getEvaluasiPemantauan());
+          // Langsung arahkan ke laporan evaluasi agar pengguna melihat hasilnya
+          handleNavigate('laporan', { reportType: 'evaluasi_pemantauan' });
+        }}
+        onOpenAiAssistant={() => {
+          setIsEvaluasiModalOpen(false);
+          setIsAiAssistantModalOpen(true);
+        }}
+      />
+
+      {/* MODAL ASISTEN AI TINDAK LANJUT PROGRAM */}
+      <AsistenAiTindakLanjutModal
+        isOpen={isAiAssistantModalOpen}
+        onClose={() => setIsAiAssistantModalOpen(false)}
+        programs={programs}
+        evaluasiList={evaluasiList}
+        monitorings={monitorings}
+        onApplyNewProgram={(name, pilarAkronim, deskripsi) => {
+          setIsAiAssistantModalOpen(false);
+          handleOpenProgramModal(undefined, pilarAkronim);
         }}
       />
 

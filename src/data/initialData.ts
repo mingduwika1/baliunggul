@@ -1,4 +1,4 @@
-import { PilarInfo, ProgramItem, PelaksanaanItem, DokumentasiItem, MonitoringItem, GuruItem, SiswaItem, KelasItem, MitraItem, PengaturanSekolah } from '../types';
+import { PilarInfo, ProgramItem, PelaksanaanItem, DokumentasiItem, MonitoringItem, GuruItem, SiswaItem, KelasItem, MitraItem, PengaturanSekolah, EvaluasiPemantauanItem } from '../types';
 
 export const PILAR_LENTERA: PilarInfo[] = [
   {
@@ -658,3 +658,72 @@ export const INITIAL_MITRA: MitraItem[] = [
   { id: 'MTR-004', namaMitra: 'BPD Bali Kantor Cabang Utama Denpasar', jenisMitra: 'DUDI', alamat: 'Jl. Raya Puputan Renon, Denpasar', kontak: '0361-235889 (Divisi UMKM)', keterangan: 'Sponsor permodalan inkubator bisnis siswa SimPel Preneur' },
   { id: 'MTR-005', namaMitra: 'Sungai Watch Bali Foundation', jenisMitra: 'Komunitas Seni/Budaya', alamat: 'Canggu, Kuta Utara, Badung', kontak: 'info@sungaiwatch.com', keterangan: 'Mitra konservasi lingkungan, audit sampah plastik, dan eco-school' }
 ];
+
+export const INITIAL_EVALUASI_PEMANTAUAN: EvaluasiPemantauanItem[] = [
+  {
+    id: 'EVL-2026-001',
+    jenisKegiatan: 'Gerakan Literasi Saban Rahina & Pojok Baca Digital',
+    idProgram: 'PRG-2026-001',
+    pilar: 'L — Literasi dan Numerasi',
+    pilarCode: 'L',
+    tanggalPemantauan: '2026-10-28',
+    pemantau: 'Ni Luh Made Ayu Pradnyani, S.Pd., M.Ed.',
+    hasilPemantauan: 'Baik',
+    keterangan: 'Kepatuhan membaca pagi 15 menit mencapai 88%, namun koleksi buku digital perlu diperkaya dengan referensi muatan lokal Bali.',
+    tindakLanjutSaran: 'Bekerjasama dengan Dinas Kearsipan Provinsi Bali untuk suplai e-book budaya.',
+    createdAt: '2026-10-28T09:30:00Z'
+  },
+  {
+    id: 'EVL-2026-002',
+    jenisKegiatan: 'Uji Lapangan Sensor Subak Smart Agriculture di Tabanan',
+    idProgram: 'PRG-2026-002',
+    pilar: 'E — Eksplorasi Teknologi',
+    pilarCode: 'E1',
+    tanggalPemantauan: '2026-10-25',
+    pemantau: 'Dr. Drs. I Nyoman Suardika, M.Pd.',
+    hasilPemantauan: 'Sangat baik',
+    keterangan: 'Alat sensor telemetri subak berfungsi prima, transmisi data stabil, pekaseh sangat mengapresiasi inovasi siswa RPL.',
+    tindakLanjutSaran: 'Siapkan pengajuan pendaftaran HKI/Paten sederhana karya inovasi teknologi siswa.',
+    createdAt: '2026-10-25T11:00:00Z'
+  },
+  {
+    id: 'EVL-2026-003',
+    jenisKegiatan: 'Bootcamp Business Pitching & Kurasi Produk Preneur',
+    idProgram: 'PRG-2026-006',
+    pilar: 'R — Rintis Kewirausahaan',
+    pilarCode: 'R',
+    tanggalPemantauan: '2026-10-22',
+    pemantau: 'Ni Made Dewi Lestari, S.E., M.M.',
+    hasilPemantauan: 'Cukup',
+    keterangan: 'Desain produk dan ide sangat kreatif, namun pemahaman siswa mengenai perhitungan margin laba kotor vs laba bersih dan sertifikasi halal/PIRT masih minim.',
+    tindakLanjutSaran: 'Adakan workshop intensif pembukuan keuangan digital dan pendampingan izin edar UMKM.',
+    createdAt: '2026-10-22T14:15:00Z'
+  },
+  {
+    id: 'EVL-2026-004',
+    jenisKegiatan: 'Panen Perdana Pupuk Kompos Organik Canang Upakara',
+    idProgram: 'PRG-2026-007',
+    pilar: 'A — Adaptif dan Inovatif',
+    pilarCode: 'A',
+    tanggalPemantauan: '2026-10-20',
+    pemantau: 'I Ketut Dananjaya, S.Si., M.Pd.',
+    hasilPemantauan: 'Sangat baik',
+    keterangan: '750 kg kompos berhasil dipanen, bau sampah teratasi dengan formula EM4 sekolah, lingkungan wantilan dan pura sekolah menjadi sangat bersih.',
+    tindakLanjutSaran: 'Gunakan kemasan karung ramah lingkungan bersablon identitas LENTERA untuk dibagikan ke banjar.',
+    createdAt: '2026-10-20T10:00:00Z'
+  },
+  {
+    id: 'EVL-2026-005',
+    jenisKegiatan: 'Pra-Asesmen dan Uji Kompetensi Sertifikasi BNSP',
+    idProgram: 'PRG-2026-005',
+    pilar: 'E — Etos Kerja dan Kompetensi',
+    pilarCode: 'E2',
+    tanggalPemantauan: '2026-10-18',
+    pemantau: 'Ir. I Made Wiraatmaja, S.T., M.T.',
+    hasilPemantauan: 'Kurang',
+    keterangan: 'Kesiapan dokumen portofolio siswa kelas XII baru mencapai 60% dan kecepatan praktik kerja di workstation belum memenuhi ritme standar industri mitra.',
+    tindakLanjutSaran: 'Perpanjang jam mentoring bengkel/lab (klinik kompetensi) sore hari dan simulasi asesmen ulang sebelum uji sesungguhnya.',
+    createdAt: '2026-10-18T16:00:00Z'
+  }
+];
+

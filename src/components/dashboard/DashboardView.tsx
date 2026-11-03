@@ -20,17 +20,23 @@ import {
   ArrowUpRight,
   ShieldAlert,
   Flame,
-  BarChart3
+  BarChart3,
+  ClipboardList,
+  Sparkles
 } from 'lucide-react';
+import { EvaluasiPemantauanItem } from '../../types';
 
 interface DashboardViewProps {
   programs: ProgramItem[];
   pelaksanaans: PelaksanaanItem[];
   dokumentasis: DokumentasiItem[];
   monitorings: MonitoringItem[];
+  evaluasiList: EvaluasiPemantauanItem[];
   onNavigate: (tab: string, filter?: any) => void;
   onOpenProgramModal: (prg?: ProgramItem) => void;
   onOpenPelaksanaanModal: () => void;
+  onOpenEvaluasiModal: () => void;
+  onOpenAiAssistantModal: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -38,9 +44,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   pelaksanaans,
   dokumentasis,
   monitorings,
+  evaluasiList,
   onNavigate,
   onOpenProgramModal,
-  onOpenPelaksanaanModal
+  onOpenPelaksanaanModal,
+  onOpenEvaluasiModal,
+  onOpenAiAssistantModal
 }) => {
   const [selectedPilarFilter, setSelectedPilarFilter] = useState<string>('ALL');
 
@@ -104,20 +113,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => onOpenProgramModal()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all flex items-center gap-1.5"
-            >
-              <span>+ Perencanaan Baru</span>
-            </button>
-            <button
-              onClick={() => onOpenPelaksanaanModal()}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold rounded-xl shadow-md transition-all flex items-center gap-1.5"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Catat Realisasi & Foto</span>
-            </button>
+          <div className="flex flex-col gap-2 shrink-0">
+            {/* Baris 1: Tombol Perencanaan & Catat Realisasi */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => onOpenProgramModal()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all flex items-center gap-1.5"
+              >
+                <span>+ Perencanaan Baru</span>
+              </button>
+              <button
+                onClick={() => onOpenPelaksanaanModal()}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold rounded-xl shadow-md transition-all flex items-center gap-1.5"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Catat Realisasi & Foto</span>
+              </button>
+            </div>
+
+            {/* Baris 2 (DI BAWAH TOMBOL PERENCANAAN DAN CATAT REALISASI): Fitur Evaluasi & Asisten AI */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={onOpenEvaluasiModal}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 border border-purple-400/30"
+                title="Input pemantauan kegiatan (Sangat baik, baik, cukup, kurang) dan muncul dalam laporan evaluasi"
+              >
+                <ClipboardList className="w-3.5 h-3.5 text-purple-200" />
+                <span>Form Evaluasi & Pemantauan</span>
+              </button>
+              <button
+                onClick={onOpenAiAssistantModal}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 border border-white/20"
+                title="Asisten AI untuk membuat tindak lanjut program berdasarkan Capaian 7 Pilar & hasil evaluasi"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                <span>Asisten AI Tindak Lanjut</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

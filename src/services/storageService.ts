@@ -9,7 +9,8 @@ import {
   MitraItem,
   PengaturanSekolah,
   UserSession,
-  KategoriEvaluasi
+  KategoriEvaluasi,
+  EvaluasiPemantauanItem
 } from '../types';
 import {
   INITIAL_PENGATURAN,
@@ -20,7 +21,8 @@ import {
   INITIAL_GURU,
   INITIAL_SISWA,
   INITIAL_KELAS,
-  INITIAL_MITRA
+  INITIAL_MITRA,
+  INITIAL_EVALUASI_PEMANTAUAN
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
@@ -29,6 +31,7 @@ const STORAGE_KEYS = {
   PELAKSANAAN: 'sim_lentera_pelaksanaan_v1',
   DOKUMENTASI: 'sim_lentera_dokumentasi_v1',
   MONITORING: 'sim_lentera_monitoring_v1',
+  EVALUASI_PEMANTAUAN: 'sim_lentera_evaluasi_pemantauan_v1',
   GURU: 'sim_lentera_guru_v1',
   SISWA: 'sim_lentera_siswa_v1',
   KELAS: 'sim_lentera_kelas_v1',
@@ -72,6 +75,9 @@ export const StorageService = {
     if (!localStorage.getItem(STORAGE_KEYS.MONITORING)) {
       localStorage.setItem(STORAGE_KEYS.MONITORING, JSON.stringify(INITIAL_MONITORING));
     }
+    if (!localStorage.getItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN)) {
+      localStorage.setItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN, JSON.stringify(INITIAL_EVALUASI_PEMANTAUAN));
+    }
     if (!localStorage.getItem(STORAGE_KEYS.GURU)) {
       localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(INITIAL_GURU));
     }
@@ -103,6 +109,7 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.PELAKSANAAN, JSON.stringify(INITIAL_PELAKSANAAN));
     localStorage.setItem(STORAGE_KEYS.DOKUMENTASI, JSON.stringify(INITIAL_DOKUMENTASI));
     localStorage.setItem(STORAGE_KEYS.MONITORING, JSON.stringify(INITIAL_MONITORING));
+    localStorage.setItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN, JSON.stringify(INITIAL_EVALUASI_PEMANTAUAN));
     localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(INITIAL_GURU));
     localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(INITIAL_SISWA));
     localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(INITIAL_KELAS));
@@ -429,6 +436,59 @@ export const StorageService = {
     notifyListeners();
   },
 
+  // EVALUASI & PEMANTAUAN KEGIATAN CRUD
+  getEvaluasiPemantauan(): EvaluasiPemantauanItem[] {
+    const val = localStorage.getItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN);
+    return val ? JSON.parse(val) : INITIAL_EVALUASI_PEMANTAUAN;
+  },
+
+  generateEvaluasiId(): string {
+    const list = this.getEvaluasiPemantauan();
+    const currentYear = new Date().getFullYear();
+    const count = list.length + 1;
+    const pad = String(count).padStart(3, '0');
+    return `EVL-${currentYear}-${pad}`;
+  },
+
+  saveEvaluasiPemantauan(item: EvaluasiPemantauanItem): EvaluasiPemantauanItem {
+    const list = this.getEvaluasiPemantauan();
+    const existingIndex = list.findIndex(e => e.id === item.id);
+    const updated: EvaluasiPemantauanItem = {
+      ...item,
+      id: item.id || this.generateEvaluasiId(),
+      createdAt: item.createdAt || new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      list[existingIndex] = updated;
+    } else {
+      list.unshift(updated);
+    }
+
+    localStorage.setItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN, JSON.stringify(list));
+    notifyListeners();
+
+    const cfg = this.getPengaturan();
+    if (cfg.gasWebAppUrl) {
+      this.syncToGas('saveEvaluasiPemantauan', {
+        data: updated
+      });
+    }
+
+    return updated;
+  },
+
+  deleteEvaluasiPemantauan(id: string) {
+    const list = this.getEvaluasiPemantauan().filter(e => e.id !== id);
+    localStorage.setItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN, JSON.stringify(list));
+    notifyListeners();
+
+    const cfg = this.getPengaturan();
+    if (cfg.gasWebAppUrl) {
+      this.syncToGas('deleteEvaluasiPemantauan', { id });
+    }
+  },
+
   // MASTER DATA: GURU, SISWA, KELAS, MITRA
   getGuru(): GuruItem[] {
     const val = localStorage.getItem(STORAGE_KEYS.GURU);
@@ -518,6 +578,7 @@ export const StorageService = {
       pelaksanaan: this.getPelaksanaan(),
       dokumentasi: this.getDokumentasi(),
       monitoring: this.getMonitoring(),
+      evaluasiPemantauan: this.getEvaluasiPemantauan(),
       guru: this.getGuru(),
       siswa: this.getSiswa(),
       kelas: this.getKelas(),
@@ -536,6 +597,7 @@ export const StorageService = {
       if (data.pelaksanaan) localStorage.setItem(STORAGE_KEYS.PELAKSANAAN, JSON.stringify(data.pelaksanaan));
       if (data.dokumentasi) localStorage.setItem(STORAGE_KEYS.DOKUMENTASI, JSON.stringify(data.dokumentasi));
       if (data.monitoring) localStorage.setItem(STORAGE_KEYS.MONITORING, JSON.stringify(data.monitoring));
+      if (data.evaluasiPemantauan) localStorage.setItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN, JSON.stringify(data.evaluasiPemantauan));
       if (data.guru) localStorage.setItem(STORAGE_KEYS.GURU, JSON.stringify(data.guru));
       if (data.siswa) localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(data.siswa));
       if (data.kelas) localStorage.setItem(STORAGE_KEYS.KELAS, JSON.stringify(data.kelas));

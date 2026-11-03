@@ -4,7 +4,9 @@ import {
   PelaksanaanItem,
   DokumentasiItem,
   MonitoringItem,
-  PengaturanSekolah
+  EvaluasiPemantauanItem,
+  PengaturanSekolah,
+  HasilPemantauan
 } from '../../types';
 import { PILAR_LENTERA } from '../../data/initialData';
 import { exportToExcel, exportToCSV } from '../../utils/exportUtils';
@@ -19,7 +21,11 @@ import {
   Layers,
   Award,
   Clock,
-  Sparkles
+  Sparkles,
+  ClipboardList,
+  AlertTriangle,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 interface LaporanViewProps {
@@ -27,7 +33,9 @@ interface LaporanViewProps {
   pelaksanaans: PelaksanaanItem[];
   dokumentasis: DokumentasiItem[];
   monitorings: MonitoringItem[];
+  evaluasiList: EvaluasiPemantauanItem[];
   pengaturan: PengaturanSekolah;
+  initialReportType?: string;
 }
 
 export const LaporanView: React.FC<LaporanViewProps> = ({
@@ -35,14 +43,17 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   pelaksanaans,
   dokumentasis,
   monitorings,
-  pengaturan
+  evaluasiList,
+  pengaturan,
+  initialReportType
 }) => {
-  const [jenisLaporan, setJenisLaporan] = useState<string>('keseluruhan');
+  const [jenisLaporan, setJenisLaporan] = useState<string>(initialReportType || 'keseluruhan');
   const [filterPilar, setFilterPilar] = useState<string>('ALL');
+  const [filterHasilPemantauan, setFilterHasilPemantauan] = useState<string>('ALL');
   const [filterSemester, setFilterSemester] = useState<string>('Ganjil');
   const [filterTahun, setFilterTahun] = useState<string>('2026/2027');
 
-  // Filter dataset based on report type
+  // Filter program datasets
   let filteredPrograms = programs;
   if (jenisLaporan === 'pilar' && filterPilar !== 'ALL') {
     filteredPrograms = programs.filter(p => p.pilarCode === filterPilar || p.pilar.includes(filterPilar));
@@ -50,11 +61,40 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     filteredPrograms = programs.filter(p => p.status === 'Direncanakan');
   }
 
+  // Filter evaluasi pemantauan datasets
+  const filteredEvaluasi = evaluasiList.filter(item => {
+    const matchPilar = filterPilar === 'ALL' || item.pilarCode === filterPilar || item.pilar.includes(filterPilar);
+    const matchHasil = filterHasilPemantauan === 'ALL' || item.hasilPemantauan === filterHasilPemantauan;
+    return matchPilar && matchHasil;
+  });
+
+  // Evaluasi statistics
+  const countSangatBaik = evaluasiList.filter(e => e.hasilPemantauan === 'Sangat baik').length;
+  const countBaik = evaluasiList.filter(e => e.hasilPemantauan === 'Baik').length;
+  const countCukup = evaluasiList.filter(e => e.hasilPemantauan === 'Cukup').length;
+  const countKurang = evaluasiList.filter(e => e.hasilPemantauan === 'Kurang').length;
+
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportExcel = () => {
+    if (jenisLaporan === 'evaluasi_pemantauan') {
+      const data = filteredEvaluasi.map((e, idx) => ({
+        'No': idx + 1,
+        'ID Pemantauan': e.id,
+        'Tanggal Pemantauan': e.tanggalPemantauan,
+        'Jenis Kegiatan': e.jenisKegiatan,
+        'Pilar LENTERA': e.pilar,
+        'Hasil Pemantauan': e.hasilPemantauan,
+        'Keterangan Pemantauan': e.keterangan,
+        'Tindak Lanjut Saran': e.tindakLanjutSaran || '-',
+        'Petugas Pemantau': e.pemantau
+      }));
+      exportToExcel(data, `Laporan_Evaluasi_Pemantauan_LENTERA_${new Date().toISOString().split('T')[0]}`);
+      return;
+    }
+
     const data = filteredPrograms.map(p => {
       const pel = pelaksanaans.find(e => e.idProgram === p.id);
       return {
@@ -75,6 +115,20 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   };
 
   const handleExportCSV = () => {
+    if (jenisLaporan === 'evaluasi_pemantauan') {
+      const data = filteredEvaluasi.map(e => ({
+        ID_Pemantauan: e.id,
+        Tanggal: e.tanggalPemantauan,
+        Jenis_Kegiatan: e.jenisKegiatan,
+        Pilar: e.pilar,
+        Hasil_Pemantauan: e.hasilPemantauan,
+        Keterangan: e.keterangan,
+        Pemantau: e.pemantau
+      }));
+      exportToCSV(data, `Laporan_Evaluasi_Pemantauan_LENTERA_${new Date().toISOString().split('T')[0]}`);
+      return;
+    }
+
     const data = filteredPrograms.map(p => ({
       ID_Program: p.id,
       Pilar: p.pilar,
@@ -91,7 +145,23 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     semester: 'LAPORAN PELAKSANAAN PROGRAM SEMESTER ' + filterSemester.toUpperCase() + ' ' + filterTahun,
     tahunan: 'LAPORAN TAHUNAN AKHIR PERIODE LENTERA ' + filterTahun,
     belum_terlaksana: 'LAPORAN PROGRAM KERJA DALAM ANTREAN (BELUM TERLAKSANA)',
-    monitoring: 'LAPORAN EVALUASI & PENJAMINAN MUTU PROGRAM LENTERA'
+    monitoring: 'LAPORAN PENJAMINAN MUTU & MONITORING PROGRAM',
+    evaluasi_pemantauan: 'LAPORAN HASIL EVALUASI & PEMANTAUAN KEGIATAN LENTERA'
+  };
+
+  const getBadgeHasil = (hasil: HasilPemantauan) => {
+    switch (hasil) {
+      case 'Sangat baik':
+        return 'bg-emerald-50 text-emerald-800 border-emerald-300';
+      case 'Baik':
+        return 'bg-blue-50 text-blue-800 border-blue-300';
+      case 'Cukup':
+        return 'bg-amber-50 text-amber-800 border-amber-300';
+      case 'Kurang':
+        return 'bg-rose-50 text-rose-800 border-rose-300';
+      default:
+        return 'bg-slate-50 text-slate-700 border-slate-300';
+    }
   };
 
   return (
@@ -145,18 +215,38 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
             <select
               value={jenisLaporan}
               onChange={e => setJenisLaporan(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 font-semibold"
             >
               <option value="keseluruhan">1. Laporan Keseluruhan 7 Pilar</option>
-              <option value="pilar">2. Laporan Khusus per Pilar</option>
-              <option value="semester">3. Laporan per Semester</option>
-              <option value="tahunan">4. Laporan Tahunan Sekolah</option>
-              <option value="belum_terlaksana">5. Laporan Kegiatan Belum Terlaksana</option>
-              <option value="monitoring">6. Laporan Monitoring & Evaluasi</option>
+              <option value="evaluasi_pemantauan">⭐ 2. Laporan Hasil Evaluasi & Pemantauan Kegiatan</option>
+              <option value="pilar">3. Laporan Khusus per Pilar</option>
+              <option value="semester">4. Laporan per Semester</option>
+              <option value="tahunan">5. Laporan Tahunan Sekolah</option>
+              <option value="belum_terlaksana">6. Laporan Kegiatan Belum Terlaksana</option>
+              <option value="monitoring">7. Laporan Monitoring & Evaluasi Mutu</option>
             </select>
           </div>
 
-          {jenisLaporan === 'pilar' && (
+          {jenisLaporan === 'evaluasi_pemantauan' && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Filter Hasil Pemantauan
+              </label>
+              <select
+                value={filterHasilPemantauan}
+                onChange={e => setFilterHasilPemantauan(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white"
+              >
+                <option value="ALL">Semua Hasil Pemantauan</option>
+                <option value="Sangat baik">Sangat Baik ({countSangatBaik})</option>
+                <option value="Baik">Baik ({countBaik})</option>
+                <option value="Cukup">Cukup ({countCukup})</option>
+                <option value="Kurang">Kurang ({countKurang})</option>
+              </select>
+            </div>
+          )}
+
+          {(jenisLaporan === 'pilar' || jenisLaporan === 'evaluasi_pemantauan') && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Pilih Pilar</label>
               <select
@@ -198,7 +288,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         </div>
       </div>
 
-      {/* PRINTABLE OFFICIAL REPORT CANVAS (Rendered clean on screen & pristine on print) */}
+      {/* PRINTABLE OFFICIAL REPORT CANVAS */}
       <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-300 shadow-lg text-slate-900 font-sans print:border-none print:shadow-none print:p-0">
         {/* KOP SURAT SEKOLAH RESMI */}
         <div className="border-b-4 border-double border-slate-900 pb-4 text-center relative flex items-center justify-between">
@@ -244,72 +334,159 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           </p>
         </div>
 
-        {/* TABEL LAPORAN KEGIATAN & HASIL */}
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full border-collapse border border-slate-400 text-xs text-left">
-            <thead>
-              <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-400">
-                <th className="border border-slate-300 p-2 w-10 text-center">No</th>
-                <th className="border border-slate-300 p-2 w-24">ID & Pilar</th>
-                <th className="border border-slate-300 p-2">Nama Program & Tujuan</th>
-                <th className="border border-slate-300 p-2 w-32">Waktu & Sasaran</th>
-                <th className="border border-slate-300 p-2 w-32">Penanggung Jawab</th>
-                <th className="border border-slate-300 p-2">Uraian Realisasi & Hasil</th>
-                <th className="border border-slate-300 p-2 w-24 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-300">
-              {filteredPrograms.map((prg, index) => {
-                const pel = pelaksanaans.find(e => e.idProgram === prg.id);
-                return (
-                  <tr key={prg.id} className="align-top">
-                    <td className="border border-slate-300 p-2 text-center font-bold">
-                      {index + 1}
-                    </td>
-                    <td className="border border-slate-300 p-2">
-                      <div className="font-mono font-bold text-blue-900">{prg.id}</div>
-                      <div className="text-[10px] text-slate-500 font-semibold mt-0.5">{prg.pilar}</div>
-                    </td>
-                    <td className="border border-slate-300 p-2">
-                      <div className="font-bold text-slate-900">{prg.namaProgram}</div>
-                      <div className="text-[11px] text-slate-600 mt-1 italic">
-                        <strong>Tujuan:</strong> {prg.tujuan}
-                      </div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
-                        <strong>Indikator:</strong> {prg.indikator}
-                      </div>
-                    </td>
-                    <td className="border border-slate-300 p-2 text-[11px]">
-                      <div>{prg.waktuPelaksanaan || `${prg.tanggalMulai} s/d ${prg.tanggalSelesai}`}</div>
-                      <div className="text-[10px] text-slate-500 mt-1 font-medium">{prg.sasaran}</div>
-                    </td>
-                    <td className="border border-slate-300 p-2 text-[11px] font-semibold">
-                      {prg.penanggungJawab}
-                    </td>
-                    <td className="border border-slate-300 p-2 text-[11px]">
-                      {pel ? (
-                        <div className="space-y-1">
-                          <p><strong>Uraian:</strong> {pel.uraian}</p>
-                          <p className="text-slate-800"><strong>Hasil:</strong> {pel.hasil}</p>
-                          {pel.kendala && (
-                            <p className="text-rose-700"><strong>Kendala:</strong> {pel.kendala}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic">
-                          Belum ada pencatatan realisasi
-                        </span>
-                      )}
-                    </td>
-                    <td className="border border-slate-300 p-2 text-center font-bold text-[10px]">
-                      {prg.status}
-                    </td>
+        {/* KONTEN JIKA MEMILIH LAPORAN EVALUASI & PEMANTAUAN KEGIATAN */}
+        {jenisLaporan === 'evaluasi_pemantauan' ? (
+          <div className="space-y-6">
+            {/* Rekapitulasi Hasil Pemantauan */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-300">
+              <div className="p-3 bg-white rounded-lg border border-emerald-200 text-center">
+                <span className="text-[11px] font-semibold text-emerald-800 block">Sangat Baik</span>
+                <span className="text-xl font-black text-emerald-700">{countSangatBaik}</span>
+                <span className="text-[10px] text-slate-400 block">Kegiatan Optimal</span>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-200 text-center">
+                <span className="text-[11px] font-semibold text-blue-800 block">Baik</span>
+                <span className="text-xl font-black text-blue-700">{countBaik}</span>
+                <span className="text-[10px] text-slate-400 block">Sesuai Indikator</span>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-amber-200 text-center">
+                <span className="text-[11px] font-semibold text-amber-800 block">Cukup</span>
+                <span className="text-xl font-black text-amber-700">{countCukup}</span>
+                <span className="text-[10px] text-slate-400 block">Perlu Pendampingan</span>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-rose-200 text-center">
+                <span className="text-[11px] font-semibold text-rose-800 block">Kurang</span>
+                <span className="text-xl font-black text-rose-700">{countKurang}</span>
+                <span className="text-[10px] text-slate-400 block">Perlu Intervensi Segera</span>
+              </div>
+            </div>
+
+            {/* Tabel Detail Pemantauan & Evaluasi */}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-slate-400 text-xs text-left">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-400">
+                    <th className="border border-slate-300 p-2.5 w-10 text-center">No</th>
+                    <th className="border border-slate-300 p-2.5 w-28">ID & Tanggal</th>
+                    <th className="border border-slate-300 p-2.5">Jenis / Nama Kegiatan & Pilar</th>
+                    <th className="border border-slate-300 p-2.5 w-32 text-center">Hasil Pemantauan</th>
+                    <th className="border border-slate-300 p-2.5">Keterangan Pemantauan / Observasi</th>
+                    <th className="border border-slate-300 p-2.5 w-44">Tindak Lanjut / Saran</th>
+                    <th className="border border-slate-300 p-2.5 w-32">Petugas Pemantau</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-slate-300">
+                  {filteredEvaluasi.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="border border-slate-300 p-6 text-center text-slate-400">
+                        Belum ada data evaluasi pemantauan yang sesuai kriteria filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredEvaluasi.map((item, index) => (
+                      <tr key={item.id} className="align-top hover:bg-slate-50/50">
+                        <td className="border border-slate-300 p-2.5 text-center font-bold">
+                          {index + 1}
+                        </td>
+                        <td className="border border-slate-300 p-2.5">
+                          <div className="font-mono font-bold text-purple-900">{item.id}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">{item.tanggalPemantauan}</div>
+                        </td>
+                        <td className="border border-slate-300 p-2.5">
+                          <div className="font-bold text-slate-900">{item.jenisKegiatan}</div>
+                          <span className="inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                            {item.pilar}
+                          </span>
+                        </td>
+                        <td className="border border-slate-300 p-2.5 text-center">
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${getBadgeHasil(item.hasilPemantauan)}`}>
+                            {item.hasilPemantauan}
+                          </span>
+                        </td>
+                        <td className="border border-slate-300 p-2.5 text-slate-800 leading-relaxed text-[11px]">
+                          {item.keterangan}
+                        </td>
+                        <td className="border border-slate-300 p-2.5 text-slate-700 leading-relaxed text-[11px]">
+                          {item.tindakLanjutSaran || '-'}
+                        </td>
+                        <td className="border border-slate-300 p-2.5 text-slate-800 font-semibold text-[11px]">
+                          {item.pemantau}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          /* TABEL LAPORAN KEGIATAN STANDARD PROGRAM */
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full border-collapse border border-slate-400 text-xs text-left">
+              <thead>
+                <tr className="bg-slate-100 text-slate-900 font-bold border-b border-slate-400">
+                  <th className="border border-slate-300 p-2 w-10 text-center">No</th>
+                  <th className="border border-slate-300 p-2 w-24">ID & Pilar</th>
+                  <th className="border border-slate-300 p-2">Nama Program & Tujuan</th>
+                  <th className="border border-slate-300 p-2 w-32">Waktu & Sasaran</th>
+                  <th className="border border-slate-300 p-2 w-32">Penanggung Jawab</th>
+                  <th className="border border-slate-300 p-2">Uraian Realisasi & Hasil</th>
+                  <th className="border border-slate-300 p-2 w-24 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-300">
+                {filteredPrograms.map((prg, index) => {
+                  const pel = pelaksanaans.find(e => e.idProgram === prg.id);
+                  return (
+                    <tr key={prg.id} className="align-top">
+                      <td className="border border-slate-300 p-2 text-center font-bold">
+                        {index + 1}
+                      </td>
+                      <td className="border border-slate-300 p-2">
+                        <div className="font-mono font-bold text-blue-900">{prg.id}</div>
+                        <div className="text-[10px] text-slate-500 font-semibold mt-0.5">{prg.pilar}</div>
+                      </td>
+                      <td className="border border-slate-300 p-2">
+                        <div className="font-bold text-slate-900">{prg.namaProgram}</div>
+                        <div className="text-[11px] text-slate-600 mt-1 italic">
+                          <strong>Tujuan:</strong> {prg.tujuan}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          <strong>Indikator:</strong> {prg.indikator}
+                        </div>
+                      </td>
+                      <td className="border border-slate-300 p-2 text-[11px]">
+                        <div>{prg.waktuPelaksanaan || `${prg.tanggalMulai} s/d ${prg.tanggalSelesai}`}</div>
+                        <div className="text-[10px] text-slate-500 mt-1 font-medium">{prg.sasaran}</div>
+                      </td>
+                      <td className="border border-slate-300 p-2 text-[11px] font-semibold">
+                        {prg.penanggungJawab}
+                      </td>
+                      <td className="border border-slate-300 p-2 text-[11px]">
+                        {pel ? (
+                          <div className="space-y-1">
+                            <p><strong>Uraian:</strong> {pel.uraian}</p>
+                            <p className="text-slate-800"><strong>Hasil:</strong> {pel.hasil}</p>
+                            {pel.kendala && (
+                              <p className="text-rose-700"><strong>Kendala:</strong> {pel.kendala}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic">
+                            Belum ada pencatatan realisasi
+                          </span>
+                        )}
+                      </td>
+                      <td className="border border-slate-300 p-2 text-center font-bold text-[10px]">
+                        {prg.status}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* DOKUMENTASI FOTO TERPILIH */}
         <div className="mt-8 pt-4 border-t border-slate-200">

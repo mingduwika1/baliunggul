@@ -19,7 +19,22 @@ export interface PilarInfo {
 export type StatusPerencanaan = 'Direncanakan' | 'Disetujui' | 'Sedang Berjalan' | 'Selesai' | 'Ditunda' | 'Dibatalkan';
 export type StatusPelaksanaan = 'Terlaksana Sempurna' | 'Terlaksana Sebagian' | 'Dalam Proses' | 'Terlambat' | 'Belum Terlaksana';
 export type KategoriEvaluasi = 'Sangat Baik' | 'Baik' | 'Cukup' | 'Perlu Perbaikan';
+export type HasilPemantauan = 'Sangat baik' | 'Baik' | 'Cukup' | 'Kurang';
 export type UserRole = 'ADMIN' | 'KEPALA_SEKOLAH' | 'KOORDINATOR' | 'GURU';
+
+export interface EvaluasiPemantauanItem {
+  id: string; // e.g., EVL-2026-001
+  jenisKegiatan: string;
+  idProgram?: string;
+  pilar: string;
+  pilarCode: PilarCode;
+  tanggalPemantauan: string; // YYYY-MM-DD
+  pemantau: string;
+  hasilPemantauan: HasilPemantauan;
+  keterangan: string;
+  tindakLanjutSaran?: string;
+  createdAt?: string;
+}
 
 export type IntegrasiKurikulum = 
   | 'Intrakurikuler' 
