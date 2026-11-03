@@ -10,7 +10,9 @@ import {
   PengaturanSekolah,
   UserSession,
   KategoriEvaluasi,
-  EvaluasiPemantauanItem
+  HasilPemantauan,
+  EvaluasiPemantauanItem,
+  PilarCode
 } from '../types';
 import {
   INITIAL_PENGATURAN,
@@ -24,6 +26,190 @@ import {
   INITIAL_MITRA,
   INITIAL_EVALUASI_PEMANTAUAN
 } from '../data/initialData';
+
+// Helper untuk membersihkan format tanggal dari Spreadsheet
+export function cleanDate(val: any, fallback = ''): string {
+  if (!val) return fallback;
+  if (val instanceof Date) {
+    try {
+      return val.toISOString().split('T')[0];
+    } catch {
+      return fallback;
+    }
+  }
+  const str = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.substring(0, 10);
+  }
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    try {
+      return parsed.toISOString().split('T')[0];
+    } catch {
+      return fallback;
+    }
+  }
+  return str || fallback;
+}
+
+export function detectPilarCode(pilarStr: any): PilarCode {
+  const str = String(pilarStr || '').toLowerCase();
+  if (str.includes('literasi') || str.startsWith('l')) return 'L';
+  if (str.includes('eksplorasi') || str.includes('teknologi') || str.startsWith('e1')) return 'E1';
+  if (str.includes('karakter') || str.startsWith('n')) return 'N';
+  if (str.includes('tradisi') || str.includes('budaya') || str.startsWith('t')) return 'T';
+  if (str.includes('etos') || str.includes('kompetensi') || str.startsWith('e2')) return 'E2';
+  if (str.includes('wirausaha') || str.startsWith('r')) return 'R';
+  if (str.includes('adaptif') || str.includes('inovatif') || str.startsWith('a')) return 'A';
+  return 'L';
+}
+
+export function normalizeGasUrl(url: string): string {
+  if (!url) return '';
+  return String(url).trim().replace(/\/edit(\?.*)?$/, '/exec');
+}
+
+// Mappers dari Baris Spreadsheet ke Model Aplikasi
+export function mapRowToProgram(row: any, index: number): ProgramItem | null {
+  if (!row) return null;
+  const id = row['ID_Program'] || row['id_program'] || row['ID'] || row['id'] || `PRG-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`;
+  const namaProgram = row['Nama_Program'] || row['nama_program'] || row['Nama Program'] || row['namaProgram'] || row['Nama'] || row['nama'] || '';
+  if (!namaProgram && !id) return null;
+
+  const pilar = String(row['Pilar'] || row['pilar'] || 'L — Literasi dan Numerasi');
+  const pilarCode = (row['Pilar_Code'] || row['pilar_code'] || row['pilarCode'] || detectPilarCode(pilar)) as PilarCode;
+
+  return {
+    id: String(id),
+    namaProgram: String(namaProgram || 'Program LENTERA'),
+    pilar: pilar,
+    pilarCode: pilarCode,
+    deskripsi: String(row['Deskripsi'] || row['deskripsi'] || ''),
+    tujuan: String(row['Tujuan'] || row['tujuan'] || ''),
+    sasaran: String(row['Sasaran'] || row['sasaran'] || 'Seluruh Siswa'),
+    kelas: String(row['Kelas'] || row['kelas'] || 'Semua Tingkat'),
+    bentukPelaksanaan: String(row['Bentuk_Pelaksanaan'] || row['Bentuk Pelaksanaan'] || row['bentukPelaksanaan'] || 'Kokurikuler'),
+    integrasiKurikulum: (row['Integrasi_Kurikulum'] || row['integrasi_kurikulum'] || row['integrasiKurikulum'] || 'Kokurikuler') as any,
+    mapelTerkait: String(row['Mapel_Terkait'] || row['mapel_terkait'] || row['Mapel Terkait'] || row['mapelTerkait'] || ''),
+    penanggungJawab: String(row['Penanggung_Jawab'] || row['penanggung_jawab'] || row['Penanggung Jawab'] || row['penanggungJawab'] || 'Koordinator LENTERA'),
+    timPelaksana: String(row['Tim_Pelaksana'] || row['tim_pelaksana'] || row['Tim Pelaksana'] || row['timPelaksana'] || ''),
+    mitra: String(row['Mitra'] || row['mitra'] || ''),
+    target: String(row['Target'] || row['target'] || '100% siswa tuntas'),
+    indikator: String(row['Indikator'] || row['indikator'] || ''),
+    waktuPelaksanaan: String(row['Waktu_Pelaksanaan'] || row['Waktu Pelaksanaan'] || row['waktuPelaksanaan'] || 'Semester Ganjil & Genap'),
+    tanggalMulai: cleanDate(row['Tanggal_Mulai'] || row['tanggal_mulai'] || row['Tanggal Mulai'] || row['tanggalMulai'], '2026-07-15'),
+    tanggalSelesai: cleanDate(row['Tanggal_Selesai'] || row['tanggal_selesai'] || row['Tanggal Selesai'] || row['tanggalSelesai'], '2026-12-15'),
+    anggaran: Number(row['Anggaran'] || row['anggaran'] || 0),
+    status: (row['Status'] || row['status'] || 'Direncanakan') as any,
+    createdAt: row['CreatedAt'] || row['createdAt'] || new Date().toISOString(),
+    updatedAt: row['UpdatedAt'] || row['updatedAt'] || new Date().toISOString()
+  };
+}
+
+export function mapRowToPelaksanaan(row: any, index: number): PelaksanaanItem | null {
+  if (!row) return null;
+  const id = row['ID_Pelaksanaan'] || row['id_pelaksanaan'] || row['ID'] || row['id'] || `PEL-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`;
+  const namaKegiatan = row['Nama_Kegiatan'] || row['nama_kegiatan'] || row['Nama Kegiatan'] || row['namaKegiatan'] || '';
+  if (!namaKegiatan && !id) return null;
+
+  const pilar = String(row['Pilar'] || row['pilar'] || '');
+  const pilarCode = (row['Pilar_Code'] || row['pilar_code'] || row['pilarCode'] || detectPilarCode(pilar)) as PilarCode;
+
+  return {
+    id: String(id),
+    idProgram: String(row['ID_Program'] || row['id_program'] || row['idProgram'] || ''),
+    namaKegiatan: String(namaKegiatan || 'Realisasi Kegiatan LENTERA'),
+    pilar: pilar,
+    pilarCode: pilarCode,
+    tanggal: cleanDate(row['Tanggal'] || row['tanggal'], '2026-08-01'),
+    waktu: String(row['Waktu'] || row['waktu'] || '08:00 - 12:00 WITA'),
+    lokasi: String(row['Lokasi'] || row['lokasi'] || 'Lingkungan Sekolah'),
+    penanggungJawab: String(row['Penanggung_Jawab'] || row['penanggung_jawab'] || row['Penanggung Jawab'] || row['penanggungJawab'] || 'Guru Pembina'),
+    peserta: String(row['Peserta'] || row['peserta'] || 'Siswa & Guru'),
+    jumlahPeserta: Number(row['Jumlah_Peserta'] || row['jumlah_peserta'] || row['Jumlah Peserta'] || row['jumlahPeserta'] || 0),
+    uraian: String(row['Uraian'] || row['uraian'] || ''),
+    hasil: String(row['Hasil'] || row['hasil'] || ''),
+    capaian: String(row['Capaian'] || row['capaian'] || ''),
+    kendala: String(row['Kendala'] || row['kendala'] || ''),
+    solusi: String(row['Solusi'] || row['solusi'] || ''),
+    evaluasi: String(row['Evaluasi'] || row['evaluasi'] || ''),
+    status: (row['Status'] || row['status'] || 'Selesai') as any,
+    createdAt: row['CreatedAt'] || row['createdAt'] || new Date().toISOString()
+  };
+}
+
+export function mapRowToDokumentasi(row: any, index: number): DokumentasiItem | null {
+  if (!row) return null;
+  const id = row['ID_Dokumentasi'] || row['id_dokumentasi'] || row['ID'] || row['id'] || `DOK-${String(index + 1).padStart(3, '0')}`;
+  const urlDrive = row['URL_Drive'] || row['url_drive'] || row['URL Drive'] || row['urlDrive'] || '';
+  if (!urlDrive && !row['Nama_File'] && !row['nama_file']) return null;
+
+  return {
+    id: String(id),
+    idProgram: String(row['ID_Program'] || row['id_program'] || row['idProgram'] || ''),
+    idPelaksanaan: String(row['ID_Pelaksanaan'] || row['id_pelaksanaan'] || row['idPelaksanaan'] || ''),
+    namaFile: String(row['Nama_File'] || row['nama_file'] || row['Nama File'] || row['namaFile'] || 'Dokumentasi Kegiatan'),
+    jenisFile: (row['Jenis_File'] || row['jenis_file'] || row['Jenis File'] || row['jenisFile'] || 'image') as any,
+    urlDrive: String(urlDrive),
+    tanggalUpload: cleanDate(row['Tanggal_Upload'] || row['tanggal_upload'] || row['Tanggal Upload'] || row['tanggalUpload'], new Date().toISOString().split('T')[0]),
+    keterangan: String(row['Keterangan'] || row['keterangan'] || ''),
+    pengunggah: String(row['Pengunggah'] || row['pengunggah'] || 'Tim Dokumentasi')
+  };
+}
+
+export function mapRowToEvaluasi(row: any, index: number): EvaluasiPemantauanItem | null {
+  if (!row) return null;
+  const id = row['ID_Evaluasi'] || row['id_evaluasi'] || row['ID'] || row['id'] || `EVL-${new Date().getFullYear()}-${String(index + 1).padStart(3, '0')}`;
+  const jenisKegiatan = row['Jenis_Kegiatan'] || row['jenis_kegiatan'] || row['Jenis Kegiatan'] || row['jenisKegiatan'] || '';
+  if (!jenisKegiatan && !id) return null;
+
+  const pilar = String(row['Pilar'] || row['pilar'] || 'L — Literasi dan Numerasi');
+  const pilarCode = (row['Pilar_Code'] || row['pilar_code'] || row['pilarCode'] || detectPilarCode(pilar)) as PilarCode;
+
+  return {
+    id: String(id),
+    jenisKegiatan: String(jenisKegiatan),
+    idProgram: String(row['ID_Program'] || row['id_program'] || row['idProgram'] || ''),
+    pilar: pilar,
+    pilarCode: pilarCode,
+    tanggalPemantauan: cleanDate(row['Tanggal_Pemantauan'] || row['tanggal_pemantauan'] || row['Tanggal Pemantauan'] || row['tanggalPemantauan'], new Date().toISOString().split('T')[0]),
+    pemantau: String(row['Pemantau'] || row['pemantau'] || 'Kepala Sekolah'),
+    hasilPemantauan: (row['Hasil_Pemantauan'] || row['hasil_pemantauan'] || row['Hasil Pemantauan'] || row['hasilPemantauan'] || 'Baik') as any,
+    keterangan: String(row['Keterangan'] || row['keterangan'] || ''),
+    tindakLanjutSaran: String(row['Tindak_Lanjut'] || row['tindak_lanjut'] || row['Tindak Lanjut'] || row['tindakLanjutSaran'] || ''),
+    createdAt: row['CreatedAt'] || row['createdAt'] || new Date().toISOString()
+  };
+}
+
+export function mapRowToMonitoring(row: any, index: number): MonitoringItem | null {
+  if (!row) return null;
+  const id = row['ID_Monitoring'] || row['id_monitoring'] || row['ID'] || row['id'] || `MON-${String(index + 1).padStart(3, '0')}`;
+  const pilar = String(row['Pilar'] || row['pilar'] || '');
+  return {
+    id: String(id),
+    idProgram: String(row['ID_Program'] || row['id_program'] || row['idProgram'] || ''),
+    namaProgram: String(row['Nama_Program'] || row['Nama Program'] || row['namaProgram'] || 'Program LENTERA'),
+    pilar: pilar,
+    pilarCode: detectPilarCode(pilar),
+    tanggalEvaluasi: cleanDate(row['Tanggal_Evaluasi'] || row['tanggal_evaluasi'] || row['Tanggal Evaluasi'] || row['tanggalEvaluasi']),
+    target: String(row['Target'] || row['target'] || ''),
+    realisasi: String(row['Realisasi'] || row['realisasi'] || ''),
+    persentase: Number(row['Persentase'] || row['persentase'] || 0),
+    kategori: (row['Kategori'] || row['kategori'] || 'Baik') as any,
+    kendala: String(row['Kendala'] || row['kendala'] || ''),
+    rekomendasi: String(row['Rekomendasi'] || row['rekomendasi'] || ''),
+    evaluator: String(row['Evaluator'] || row['evaluator'] || 'Tim Penjamin Mutu'),
+    status: String(row['Status'] || row['status'] || 'Selesai')
+  };
+}
+
 
 const STORAGE_KEYS = {
   PENGATURAN: 'sim_lentera_pengaturan_v2',
@@ -129,11 +315,16 @@ export const StorageService = {
   },
 
   savePengaturan(data: PengaturanSekolah) {
-    localStorage.setItem(STORAGE_KEYS.PENGATURAN, JSON.stringify(data));
+    const cleaned: PengaturanSekolah = {
+      ...data,
+      gasWebAppUrl: normalizeGasUrl(data.gasWebAppUrl)
+    };
+    localStorage.setItem(STORAGE_KEYS.PENGATURAN, JSON.stringify(cleaned));
     notifyListeners();
-    // Jika GAS Web App URL disetel, sinkronkan juga ke GAS
-    if (data.gasWebAppUrl) {
-      this.syncToGas('savePengaturan', { data });
+    // Jika GAS Web App URL disetel, langsung tarik data dari Spreadsheet agar seketika tampil di aplikasi!
+    if (cleaned.gasWebAppUrl) {
+      this.syncToGas('savePengaturan', { data: cleaned });
+      this.pullFromGas(cleaned.gasWebAppUrl);
     }
   },
 
@@ -614,26 +805,222 @@ export const StorageService = {
     }
   },
 
-  // GAS CLOUD SYNC
+  // STATUS SINKRONISASI GAS
+  _isSyncing: false,
+  isSyncing(): boolean {
+    return this._isSyncing;
+  },
+
+  getLastSyncTime(): string | null {
+    return localStorage.getItem('sim_lentera_last_gas_sync');
+  },
+
+  // TARIK SELURUH DATA DARI GOOGLE APPS SCRIPT SPREADSHEET
+  async pullFromGas(customUrl?: string): Promise<{ success: boolean; message: string; count?: any }> {
+    const cfg = this.getPengaturan();
+    const rawUrl = customUrl || cfg.gasWebAppUrl;
+    if (!rawUrl) {
+      return { success: false, message: 'Google Apps Script Web App URL belum diatur.' };
+    }
+
+    const url = normalizeGasUrl(rawUrl);
+    this._isSyncing = true;
+    notifyListeners();
+
+    try {
+      let rawData: any = null;
+
+      // Jalur 1: Menggunakan server proxy lokal /api/gas/fetch (Anti-CORS & follow 302 redirect)
+      try {
+        const proxyRes = await fetch('/api/gas/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        if (proxyRes.ok) {
+          const json = await proxyRes.json();
+          if (json.success && json.data) {
+            rawData = json.data;
+          }
+        }
+      } catch (proxyErr) {
+        console.warn('Proxy fetch failed, mencoba direct client fetch:', proxyErr);
+      }
+
+      // Jalur 2: Direct fetch browser jika proxy tidak merespon
+      if (!rawData) {
+        const targetUrl = url.includes('?') ? `${url}&action=getAllData` : `${url}?action=getAllData`;
+        const directRes = await fetch(targetUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (directRes.ok) {
+          const json = await directRes.json();
+          rawData = json.data || json;
+        }
+      }
+
+      if (!rawData) {
+        throw new Error('Tidak ada respon data yang valid dari Google Apps Script Web App');
+      }
+
+      let prgCount = 0;
+      let pelCount = 0;
+      let docCount = 0;
+      let evlCount = 0;
+
+      // 1. Sinkronisasi PROGRAM
+      const programRows = rawData.PROGRAM || rawData.Program || rawData.program;
+      if (Array.isArray(programRows)) {
+        const mappedPrograms = programRows
+          .map((r: any, i: number) => mapRowToProgram(r, i))
+          .filter((p: any): p is ProgramItem => p !== null && Boolean(p.namaProgram || p.id));
+        
+        if (mappedPrograms.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.PROGRAM, JSON.stringify(mappedPrograms));
+          prgCount = mappedPrograms.length;
+        }
+      }
+
+      // 2. Sinkronisasi PELAKSANAAN
+      const pelRows = rawData.PELAKSANAAN || rawData.Pelaksanaan || rawData.pelaksanaan;
+      if (Array.isArray(pelRows)) {
+        const mappedPelaksanaans = pelRows
+          .map((r: any, i: number) => mapRowToPelaksanaan(r, i))
+          .filter((p: any): p is PelaksanaanItem => p !== null && Boolean(p.namaKegiatan || p.id));
+        
+        if (mappedPelaksanaans.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.PELAKSANAAN, JSON.stringify(mappedPelaksanaans));
+          pelCount = mappedPelaksanaans.length;
+        }
+      }
+
+      // 3. Sinkronisasi DOKUMENTASI
+      const docRows = rawData.DOKUMENTASI || rawData.Dokumentasi || rawData.dokumentasi;
+      if (Array.isArray(docRows)) {
+        const mappedDocs = docRows
+          .map((r: any, i: number) => mapRowToDokumentasi(r, i))
+          .filter((d: any): d is DokumentasiItem => d !== null && Boolean(d.urlDrive || d.namaFile));
+        
+        if (mappedDocs.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.DOKUMENTASI, JSON.stringify(mappedDocs));
+          docCount = mappedDocs.length;
+        }
+      }
+
+      // 4. Sinkronisasi EVALUASI_PEMANTAUAN
+      const evlRows = rawData.EVALUASI_PEMANTAUAN || rawData.Evaluasi_Pemantauan || rawData.evaluasi_pemantauan || rawData.EVALUASI;
+      if (Array.isArray(evlRows)) {
+        const mappedEvals = evlRows
+          .map((r: any, i: number) => mapRowToEvaluasi(r, i))
+          .filter((e: any): e is EvaluasiPemantauanItem => e !== null && Boolean(e.jenisKegiatan || e.id));
+        
+        if (mappedEvals.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.EVALUASI_PEMANTAUAN, JSON.stringify(mappedEvals));
+          evlCount = mappedEvals.length;
+        }
+      }
+
+      // 5. Sinkronisasi MONITORING
+      const monRows = rawData.MONITORING || rawData.Monitoring || rawData.monitoring;
+      if (Array.isArray(monRows)) {
+        const mappedMon = monRows
+          .map((r: any, i: number) => mapRowToMonitoring(r, i))
+          .filter((m: any): m is MonitoringItem => m !== null && Boolean(m.target || m.id));
+        
+        if (mappedMon.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.MONITORING, JSON.stringify(mappedMon));
+        }
+      }
+
+      // 6. Simpan waktu sinkronisasi terakhir
+      const nowIso = new Date().toISOString();
+      localStorage.setItem('sim_lentera_last_gas_sync', nowIso);
+
+      notifyListeners();
+
+      return {
+        success: true,
+        message: `Sinkronisasi berhasil! Data dari Google Spreadsheet telah dimuat (${prgCount} program, ${pelCount} pelaksanaan, ${docCount} dokumentasi, ${evlCount} evaluasi).`,
+        count: { programs: prgCount, pelaksanaans: pelCount, dokumentasis: docCount, evaluasis: evlCount }
+      };
+    } catch (error: any) {
+      console.error('Error saat menarik data dari GAS:', error);
+      return {
+        success: false,
+        message: 'Gagal menarik data dari Google Apps Script: ' + (error.message || error)
+      };
+    } finally {
+      this._isSyncing = false;
+      notifyListeners();
+    }
+  },
+
+  // GAS CLOUD SYNC (POST ACTION)
   async syncToGas(action: string, payload: any) {
     const cfg = this.getPengaturan();
     if (!cfg.gasWebAppUrl) return null;
+    const url = normalizeGasUrl(cfg.gasWebAppUrl);
+    
+    // Coba via server proxy terlebih dahulu
     try {
-      const response = await fetch(cfg.gasWebAppUrl, {
+      const response = await fetch('/api/gas/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, action, payload })
+      });
+      if (response.ok) {
+        const res = await response.json();
+        return res.data || res;
+      }
+    } catch (e) {
+      console.warn('Proxy sync failed, mencoba direct:', e);
+    }
+
+    // Fallback direct POST
+    try {
+      const directResponse = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action, ...payload })
       });
-      return await response.json();
+      return await directResponse.json();
     } catch (err) {
       console.warn('Sync to GAS deferred or failed network:', err);
       return null;
     }
   },
 
+  // UJI KONEKSI KE GOOGLE SPREADSHEET
   async testGasConnection(url: string): Promise<{ success: boolean; message: string }> {
+    const cleanUrl = normalizeGasUrl(url);
+    if (!cleanUrl) {
+      return { success: false, message: 'URL Google Apps Script tidak boleh kosong.' };
+    }
+
+    // Coba melalui server proxy
     try {
-      const res = await fetch(`${url}?action=initDatabase`, {
+      const proxyRes = await fetch('/api/gas/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: cleanUrl })
+      });
+      if (proxyRes.ok) {
+        const data = await proxyRes.json();
+        if (data.success) {
+          return {
+            success: true,
+            message: 'Koneksi berhasil! Backend Google Apps Script terhubung dengan Google Spreadsheet.'
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Proxy test failed, mencoba direct:', e);
+    }
+
+    // Direct fetch fallback
+    try {
+      const res = await fetch(`${cleanUrl}?action=initDatabase`, {
         method: 'GET',
         mode: 'cors'
       });
@@ -641,11 +1028,11 @@ export const StorageService = {
       if (data.status === 'success') {
         return { success: true, message: 'Terhubung ke Google Spreadsheet! ' + (data.message || '') };
       }
-      return { success: false, message: data.message || 'Gagal merespon dengan status success' };
+      return { success: false, message: data.message || 'Gagal merespon status success' };
     } catch (err: any) {
       return {
         success: false,
-        message: 'Koneksi gagal atau terhalang izin CORS/Who has access. Pastikan Web App disetel "Who has access: Anyone". Detail: ' + err.message
+        message: 'Koneksi gagal atau izin akses belum "Anyone". Pastikan saat Deploy disetel "Who has access: Anyone". Detail: ' + err.message
       };
     }
   }

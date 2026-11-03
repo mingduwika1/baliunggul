@@ -20,6 +20,7 @@ const SHEETS = {
   PELAKSANAAN: 'PELAKSANAAN',
   DOKUMENTASI: 'DOKUMENTASI',
   MONITORING: 'MONITORING',
+  EVALUASI_PEMANTAUAN: 'EVALUASI_PEMANTAUAN',
   GURU: 'GURU',
   SISWA: 'SISWA',
   KELAS: 'KELAS',
@@ -102,6 +103,12 @@ function doPost(e) {
         break;
       case 'saveMonitoring':
         response = saveOrUpdateRow(SHEETS.MONITORING, 'ID_Monitoring', postData.data);
+        break;
+      case 'saveEvaluasi':
+        response = saveOrUpdateRow(SHEETS.EVALUASI_PEMANTAUAN, 'ID_Evaluasi', postData.data);
+        break;
+      case 'deleteEvaluasi':
+        response = deleteRowById(SHEETS.EVALUASI_PEMANTAUAN, 'ID_Evaluasi', postData.id);
         break;
       case 'savePengaturan':
         response = savePengaturan(postData.data);
@@ -198,6 +205,7 @@ function initDatabase() {
     [SHEETS.PELAKSANAAN]: ['ID_Pelaksanaan', 'ID_Program', 'Nama_Kegiatan', 'Pilar', 'Tanggal', 'Waktu', 'Lokasi', 'Penanggung_Jawab', 'Peserta', 'Jumlah_Peserta', 'Uraian', 'Hasil', 'Capaian', 'Kendala', 'Solusi', 'Evaluasi', 'Status'],
     [SHEETS.DOKUMENTASI]: ['ID_Dokumentasi', 'ID_Program', 'ID_Pelaksanaan', 'Nama_File', 'Jenis_File', 'URL_Drive', 'Tanggal_Upload', 'Keterangan', 'Pengunggah'],
     [SHEETS.MONITORING]: ['ID_Monitoring', 'ID_Program', 'Pilar', 'Tanggal_Evaluasi', 'Target', 'Realisasi', 'Persentase', 'Kategori', 'Kendala', 'Rekomendasi', 'Evaluator'],
+    [SHEETS.EVALUASI_PEMANTAUAN]: ['ID_Evaluasi', 'Jenis_Kegiatan', 'ID_Program', 'Pilar', 'Pilar_Code', 'Tanggal_Pemantauan', 'Pemantau', 'Hasil_Pemantauan', 'Keterangan', 'Tindak_Lanjut'],
     [SHEETS.GURU]: ['ID_Guru', 'Nama_Guru', 'NIP', 'Jabatan', 'Mata_Pelajaran', 'Email', 'Status'],
     [SHEETS.SISWA]: ['ID_Siswa', 'Nama_Siswa', 'NISN', 'Kelas', 'Konsentrasi_Keahlian', 'Status'],
     [SHEETS.KELAS]: ['ID_Kelas', 'Nama_Kelas', 'Tingkat', 'Konsentrasi_Keahlian', 'Wali_Kelas'],

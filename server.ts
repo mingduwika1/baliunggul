@@ -202,6 +202,116 @@ Berdasarkan audit komputasi terhadap Capaian 7 Pilar LENTERA dan rekapitulasi da
   }
 });
 
+/**
+ * Endpoint Proxy untuk Google Apps Script Web App (Tarik Data Langsung / getAllData)
+ * Mengatasi kendala CORS dan auto-follow redirect (302) dari Google Apps Script
+ */
+app.post('/api/gas/fetch', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'URL Google Apps Script tidak valid' });
+    }
+
+    const cleanUrl = String(url).trim().replace(/\/edit(\?.*)?$/, '/exec');
+    const targetUrl = cleanUrl.includes('?') ? `${cleanUrl}&action=getAllData` : `${cleanUrl}?action=getAllData`;
+
+    const gasResponse = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      },
+      redirect: 'follow'
+    });
+
+    if (!gasResponse.ok) {
+      return res.status(gasResponse.status).json({
+        success: false,
+        message: `HTTP ${gasResponse.status} dari Google Apps Script: ${gasResponse.statusText}`
+      });
+    }
+
+    const json: any = await gasResponse.json();
+    return res.json({
+      success: true,
+      data: json.data || json,
+      raw: json
+    });
+  } catch (error: any) {
+    console.error('Error fetching data from Google Apps Script:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal terhubung ke Google Apps Script: ' + (error?.message || error)
+    });
+  }
+});
+
+/**
+ * Endpoint Proxy untuk Uji Koneksi Google Apps Script
+ */
+app.post('/api/gas/test', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'URL Google Apps Script diperlukan' });
+    }
+
+    const cleanUrl = String(url).trim().replace(/\/edit(\?.*)?$/, '/exec');
+    const targetUrl = cleanUrl.includes('?') ? `${cleanUrl}&action=initDatabase` : `${cleanUrl}?action=initDatabase`;
+
+    const gasResponse = await fetch(targetUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      redirect: 'follow'
+    });
+
+    const json: any = await gasResponse.json();
+    return res.json({
+      success: json.status === 'success',
+      message: json.message || (json.status === 'success' ? 'Terhubung dengan sukses ke Google Apps Script' : 'Respon tidak sukses'),
+      data: json
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: 'Koneksi gagal atau script belum disetel publik ("Anyone"). Detail: ' + (error?.message || error)
+    });
+  }
+});
+
+/**
+ * Endpoint Proxy untuk Kirim / Sinkron Data ke Google Apps Script (POST)
+ */
+app.post('/api/gas/sync', async (req, res) => {
+  try {
+    const { url, action, payload } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'URL Google Apps Script diperlukan' });
+    }
+
+    const cleanUrl = String(url).trim().replace(/\/edit(\?.*)?$/, '/exec');
+    const postPayload = { action, ...payload };
+
+    const gasResponse = await fetch(cleanUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(postPayload),
+      redirect: 'follow'
+    });
+
+    const json: any = await gasResponse.json();
+    return res.json({ success: true, data: json });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal mengirim data ke Google Apps Script: ' + (error?.message || error)
+    });
+  }
+});
+
+
 // Setup Vite middlewares in development
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {

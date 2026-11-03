@@ -15,7 +15,8 @@ import {
   ExternalLink,
   Shield,
   Key,
-  FolderOpen
+  FolderOpen,
+  RefreshCw
 } from 'lucide-react';
 
 interface PengaturanViewProps {
@@ -30,13 +31,37 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
   const [formData, setFormData] = useState<PengaturanSekolah>({ ...pengaturan });
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     StorageService.savePengaturan(formData);
     setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    if (formData.gasWebAppUrl) {
+      setIsPulling(true);
+      const res = await StorageService.pullFromGas(formData.gasWebAppUrl);
+      setPullResult(res);
+      setIsPulling(false);
+    }
+    setTimeout(() => setSaveSuccess(false), 4000);
+  };
+
+  const handlePullData = async () => {
+    if (!formData.gasWebAppUrl) {
+      setPullResult({
+        success: false,
+        message: 'Masukkan URL Google Apps Script Web App terlebih dahulu.'
+      });
+      return;
+    }
+    setIsPulling(true);
+    setPullResult(null);
+    StorageService.savePengaturan(formData);
+    const res = await StorageService.pullFromGas(formData.gasWebAppUrl);
+    setPullResult(res);
+    setIsPulling(false);
   };
 
   const handleTestGasConnection = async () => {
@@ -254,7 +279,7 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Google Apps Script Web App URL (Endpoint API)
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="url"
                 value={formData.gasWebAppUrl || ''}
@@ -262,19 +287,58 @@ export const PengaturanView: React.FC<PengaturanViewProps> = ({
                 placeholder="https://script.google.com/macros/s/AKfycb.../exec"
                 className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono focus:ring-2 focus:ring-blue-500"
               />
-              <button
-                type="button"
-                onClick={handleTestGasConnection}
-                disabled={isTesting}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl shrink-0 transition-colors disabled:opacity-50"
-              >
-                {isTesting ? 'Menguji...' : 'Uji Koneksi'}
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handlePullData}
+                  disabled={isPulling || isTesting}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  title="Tarik data terkini dari Google Spreadsheet agar langsung muncul di aplikasi"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isPulling ? 'animate-spin' : ''}`} />
+                  <span>{isPulling ? 'Menarik Data...' : 'Tarik Data Sekarang'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestGasConnection}
+                  disabled={isTesting || isPulling}
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {isTesting ? 'Menguji...' : 'Uji Koneksi'}
+                </button>
+              </div>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Dapatkan URL ini setelah menerapkan (Deploy) script di editor Apps Script spreadsheet Anda.
-            </p>
+            <div className="flex items-center justify-between mt-1.5 text-[11px] text-slate-500">
+              <span>
+                Data di Google Spreadsheet akan langsung ditarik dan tampil di seluruh menu aplikasi saat Anda klik "Tarik Data Sekarang" atau "Simpan Pengaturan".
+              </span>
+              {StorageService.getLastSyncTime() && (
+                <span className="text-emerald-700 font-medium shrink-0 ml-2">
+                  Terakhir ditarik: {new Date(StorageService.getLastSyncTime()!).toLocaleTimeString('id-ID')} WITA
+                </span>
+              )}
+            </div>
           </div>
+
+          {pullResult && (
+            <div
+              className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 animate-in fade-in ${
+                pullResult.success
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                  : 'bg-rose-50 border-rose-300 text-rose-900'
+              }`}
+            >
+              {pullResult.success ? (
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <p className="font-semibold">{pullResult.success ? 'Sinkronisasi Spreadsheet Berhasil!' : 'Sinkronisasi Gagal'}</p>
+                <p className="text-[11px] mt-0.5 text-slate-700">{pullResult.message}</p>
+              </div>
+            </div>
+          )}
 
           {testResult && (
             <div

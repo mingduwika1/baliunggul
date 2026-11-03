@@ -8,7 +8,9 @@ import {
   School,
   Clock,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  RefreshCw,
+  Cloud
 } from 'lucide-react';
 import { UserRole, UserSession, PengaturanSekolah } from '../../types';
 import { StorageService } from '../../services/storageService';
@@ -21,6 +23,8 @@ interface HeaderProps {
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
   onNavigate: (tab: string) => void;
+  onSyncGas?: () => void;
+  isSyncing?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,7 +34,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenGasHub,
   isMobileOpen,
   setIsMobileOpen,
-  onNavigate
+  onNavigate,
+  onSyncGas,
+  isSyncing = false
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -113,6 +119,28 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="font-mono">{timeStr}</span>
           </div>
 
+          {/* Google Spreadsheet Live Sync Button */}
+          {pengaturan.gasWebAppUrl ? (
+            <button
+              onClick={onSyncGas}
+              disabled={isSyncing}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all disabled:opacity-50"
+              title="Tarik & perbarui seluruh data langsung dari Google Spreadsheet"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isSyncing ? 'Menyinkronkan...' : 'Sinkron Spreadsheet'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onNavigate('pengaturan')}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-600/30 shadow-xs transition-all"
+              title="Hubungkan dengan Web App URL Google Spreadsheet"
+            >
+              <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden md:inline">Hubungkan Spreadsheet</span>
+            </button>
+          )}
+
           {/* Google Apps Script Quick Hub Button */}
           <button
             onClick={onOpenGasHub}
@@ -120,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Buka Kode Google Apps Script & Panduan Deployment"
           >
             <Code2 className="w-4 h-4 text-slate-950" />
-            <span className="hidden sm:inline">Google Apps Script</span>
+            <span className="hidden sm:inline">Code.gs</span>
           </button>
 
           {/* Notifications Dropdown */}

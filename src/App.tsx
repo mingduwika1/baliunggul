@@ -45,10 +45,37 @@ import { GasHubModal } from './components/gas/GasHubModal';
 import { PrintableKegiatanModal } from './components/laporan/PrintableKegiatanModal';
 
 export default function App() {
-  // Initialize initial data in LocalStorage if not present
+  // State untuk status sinkronisasi & notifikasi toast
+  const [isSyncingGas, setIsSyncingGas] = useState(false);
+  const [gasToast, setGasToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Initialize initial data in LocalStorage & otomatis tarik dari Google Apps Script jika URL sudah disetel
   useEffect(() => {
     StorageService.initData();
+    const cfg = StorageService.getPengaturan();
+    if (cfg.gasWebAppUrl) {
+      StorageService.pullFromGas(cfg.gasWebAppUrl).then(res => {
+        if (res.success && res.count && (res.count.programs > 0 || res.count.pelaksanaans > 0 || res.count.evaluasis > 0)) {
+          setGasToast({ message: res.message, type: 'success' });
+          setTimeout(() => setGasToast(null), 5000);
+        }
+      });
+    }
   }, []);
+
+  const handleSyncGasNow = async () => {
+    setIsSyncingGas(true);
+    setGasToast({ message: 'Menghubungkan ke Google Apps Script & menarik data Spreadsheet...', type: 'info' });
+    const res = await StorageService.pullFromGas();
+    setIsSyncingGas(false);
+    if (res.success) {
+      setGasToast({ message: res.message, type: 'success' });
+      setTimeout(() => setGasToast(null), 5000);
+    } else {
+      setGasToast({ message: res.message, type: 'error' });
+      setTimeout(() => setGasToast(null), 6000);
+    }
+  };
 
   // Reactive State loaded from storage service
   const [pengaturan, setPengaturan] = useState<PengaturanSekolah>(StorageService.getPengaturan());
@@ -191,6 +218,8 @@ export default function App() {
         isMobileOpen={isMobileMenuOpen}
         setIsMobileOpen={setIsMobileMenuOpen}
         onNavigate={handleNavigate}
+        onSyncGas={handleSyncGasNow}
+        isSyncing={isSyncingGas}
       />
 
       <div className="flex-1 flex">
@@ -374,6 +403,33 @@ export default function App() {
         dokumentasis={dokumentasis}
         pengaturan={pengaturan}
       />
+
+      {/* Toast Notifikasi Sinkronisasi Google Apps Script */}
+      {gasToast && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-md animate-in slide-in-from-bottom-5">
+          <div className={`p-4 rounded-2xl shadow-2xl border flex items-start gap-3 ${
+            gasToast.type === 'success' ? 'bg-emerald-950 text-emerald-100 border-emerald-600 shadow-emerald-950/40' :
+            gasToast.type === 'error' ? 'bg-rose-950 text-rose-100 border-rose-600 shadow-rose-950/40' :
+            'bg-slate-900 text-slate-100 border-slate-700 shadow-slate-950/40'
+          }`}>
+            <span className="text-xl shrink-0 mt-0.5">
+              {gasToast.type === 'success' ? '🟢' : gasToast.type === 'error' ? '⚠️' : '🔄'}
+            </span>
+            <div className="flex-1 text-xs">
+              <p className="font-bold">
+                {gasToast.type === 'success' ? 'Google Spreadsheet Terhubung' : gasToast.type === 'error' ? 'Kendala Sinkronisasi' : 'Menyinkronkan...'}
+              </p>
+              <p className="mt-1 leading-relaxed text-slate-200">{gasToast.message}</p>
+            </div>
+            <button
+              onClick={() => setGasToast(null)}
+              className="text-slate-400 hover:text-white text-xs px-1.5 py-0.5 rounded-md hover:bg-white/10"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
