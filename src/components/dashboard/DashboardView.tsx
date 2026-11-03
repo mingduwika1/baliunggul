@@ -82,16 +82,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
     .slice(0, 5);
 
-  // Monthly realization stats for 2026
-  const months = ['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const monthData = [
-    { month: 'Jul', planned: 2, completed: 1 },
-    { month: 'Agu', planned: 3, completed: 2 },
-    { month: 'Sep', planned: 4, completed: 3 },
-    { month: 'Okt', planned: 5, completed: 4 },
-    { month: 'Nov', planned: 4, completed: 1 },
-    { month: 'Des', planned: 3, completed: 0 }
-  ];
+  // Monthly realization stats computed dynamically from programs
+  const monthMap: Record<number, { planned: number; completed: number }> = {
+    6: { planned: 0, completed: 0 }, // Jul
+    7: { planned: 0, completed: 0 }, // Agu
+    8: { planned: 0, completed: 0 }, // Sep
+    9: { planned: 0, completed: 0 }, // Okt
+    10: { planned: 0, completed: 0 }, // Nov
+    11: { planned: 0, completed: 0 }  // Des
+  };
+
+  programs.forEach(p => {
+    if (p.tanggalMulai) {
+      const d = new Date(p.tanggalMulai);
+      const m = d.getMonth();
+      if (monthMap[m] !== undefined) {
+        monthMap[m].planned += 1;
+        if (p.status === 'Selesai') {
+          monthMap[m].completed += 1;
+        }
+      }
+    }
+  });
+
+  const monthLabels = ['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthData = [6, 7, 8, 9, 10, 11].map((mIdx, idx) => ({
+    month: monthLabels[idx],
+    planned: monthMap[mIdx].planned,
+    completed: monthMap[mIdx].completed
+  }));
 
   return (
     <div className="space-y-6">
@@ -346,10 +365,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* Bar Chart Visualization */}
           <div className="mt-6 h-56 flex items-end justify-between gap-4 px-4 pt-4 border-b border-slate-200">
-            {monthData.map((d, i) => {
-              const maxVal = 6;
-              const plannedHeight = (d.planned / maxVal) * 100;
-              const completedHeight = (d.completed / maxVal) * 100;
+            {(() => {
+              const maxVal = Math.max(...monthData.map(d => Math.max(d.planned, d.completed)), 4);
+              return monthData.map((d, i) => {
+                const plannedHeight = (d.planned / maxVal) * 100;
+                const completedHeight = (d.completed / maxVal) * 100;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group">
@@ -377,8 +397,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <span className="text-xs font-medium text-slate-600 mt-2">{d.month}</span>
                 </div>
               );
-            })}
-          </div>
+            });
+          })()}
+        </div>
 
           {/* Evaluation Quick Summary */}
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-center text-xs">

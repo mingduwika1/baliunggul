@@ -26,17 +26,17 @@ import {
 } from '../data/initialData';
 
 const STORAGE_KEYS = {
-  PENGATURAN: 'sim_lentera_pengaturan_v1',
-  PROGRAM: 'sim_lentera_program_v1',
-  PELAKSANAAN: 'sim_lentera_pelaksanaan_v1',
-  DOKUMENTASI: 'sim_lentera_dokumentasi_v1',
-  MONITORING: 'sim_lentera_monitoring_v1',
-  EVALUASI_PEMANTAUAN: 'sim_lentera_evaluasi_pemantauan_v1',
-  GURU: 'sim_lentera_guru_v1',
-  SISWA: 'sim_lentera_siswa_v1',
-  KELAS: 'sim_lentera_kelas_v1',
-  MITRA: 'sim_lentera_mitra_v1',
-  USER_SESSION: 'sim_lentera_session_v1'
+  PENGATURAN: 'sim_lentera_pengaturan_v2',
+  PROGRAM: 'sim_lentera_program_v2',
+  PELAKSANAAN: 'sim_lentera_pelaksanaan_v2',
+  DOKUMENTASI: 'sim_lentera_dokumentasi_v2',
+  MONITORING: 'sim_lentera_monitoring_v2',
+  EVALUASI_PEMANTAUAN: 'sim_lentera_evaluasi_pemantauan_v2',
+  GURU: 'sim_lentera_guru_v2',
+  SISWA: 'sim_lentera_siswa_v2',
+  KELAS: 'sim_lentera_kelas_v2',
+  MITRA: 'sim_lentera_mitra_v2',
+  USER_SESSION: 'sim_lentera_session_v2'
 };
 
 type Listener = () => void;
@@ -60,6 +60,11 @@ export const StorageService = {
 
   // Inisialisasi Database
   initData() {
+    // Bersihkan data program lama jika ada agar dimulai dari kosong
+    ['sim_lentera_program_v1', 'sim_lentera_pelaksanaan_v1', 'sim_lentera_dokumentasi_v1', 'sim_lentera_monitoring_v1', 'sim_lentera_evaluasi_pemantauan_v1'].forEach(k => {
+      try { localStorage.removeItem(k); } catch (_) {}
+    });
+
     if (!localStorage.getItem(STORAGE_KEYS.PENGATURAN)) {
       localStorage.setItem(STORAGE_KEYS.PENGATURAN, JSON.stringify(INITIAL_PENGATURAN));
     }
