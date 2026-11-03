@@ -17,7 +17,8 @@ import {
   Trash2,
   X,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 
 interface MasterDataViewProps {
@@ -39,6 +40,22 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({
   // Modal State for CRUD
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [isPulling, setIsPulling] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
+  const handlePullFromSpreadsheet = async () => {
+    setIsPulling(true);
+    setSyncFeedback(null);
+    const res = await StorageService.pullFromGas();
+    setIsPulling(false);
+    if (res.success) {
+      setSyncFeedback(res.message);
+      setTimeout(() => setSyncFeedback(null), 5000);
+    } else {
+      setSyncFeedback(res.message);
+      setTimeout(() => setSyncFeedback(null), 6000);
+    }
+  };
 
   // Form State
   const [guruForm, setGuruForm] = useState<Partial<GuruItem>>({});
@@ -148,6 +165,16 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handlePullFromSpreadsheet}
+            disabled={isPulling}
+            className="px-3.5 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            title="Tarik langsung data Guru, Siswa, Kelas, & Mitra terbaru dari Google Spreadsheet"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isPulling ? 'animate-spin' : ''}`} />
+            <span>{isPulling ? 'Menarik Data...' : 'Tarik Spreadsheet'}</span>
+          </button>
+
+          <button
             onClick={handleExport}
             className="px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl flex items-center gap-1.5 transition-colors"
           >
@@ -166,6 +193,13 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({
           )}
         </div>
       </div>
+
+      {syncFeedback && (
+        <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-medium flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+          <span>{syncFeedback}</span>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">

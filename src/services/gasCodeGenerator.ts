@@ -269,8 +269,10 @@ function getAllDataFromSheets() {
     const headers = rows[0];
     const items = [];
     for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row[0]) continue; // lewati baris kosong
+      var hasAnyValue = row.some(function(cell) {
+        return cell !== '' && cell !== null && cell !== undefined;
+      });
+      if (!hasAnyValue) continue; // lewati baris yang benar-benar kosong
       const item = {};
       for (let j = 0; j < headers.length; j++) {
         item[headers[j]] = row[j];

@@ -55,7 +55,7 @@ export default function App() {
     const cfg = StorageService.getPengaturan();
     if (cfg.gasWebAppUrl) {
       StorageService.pullFromGas(cfg.gasWebAppUrl).then(res => {
-        if (res.success && res.count && (res.count.programs > 0 || res.count.pelaksanaans > 0 || res.count.evaluasis > 0)) {
+        if (res.success && res.count && (res.count.total > 0 || res.count.programs > 0 || res.count.gurus > 0 || res.count.siswas > 0)) {
           setGasToast({ message: res.message, type: 'success' });
           setTimeout(() => setGasToast(null), 5000);
         }
